@@ -1,37 +1,43 @@
-import argparse
-from datasets import load_dataset
-from tokenizers import Tokenizer
-from tokenizers.models import BPE
-from tokenizers.trainers import BpeTrainer
-from tokenizers.pre_tokenizers import Whitespace
-from tokens import SPECIAL_TOKENS, UNKNOWN_TOKEN
+import os
+import sentencepiece as spm
+from tokens import BOS_TOKEN, EOS_TOKEN, PAD_TOKEN, UNKNOWN_TOKEN
 
 
-def load_text(data_files="TinyStories-train.txt"):
-    dataset = load_dataset(
-        "roneneldan/TinyStories", data_files=data_files, split="train"
+def train_tokenizer(input_file, vocab_size=16_000, delete_input=False):
+    spm.SentencePieceTrainer.train(
+        input=input_file,
+        model_prefix=f"tokenizer_{vocab_size}",
+        vocab_size=vocab_size,
+        model_type="bpe",
+        byte_fallback=True,
+        num_threads=os.cpu_count(),
+        allow_whitespace_only_pieces=True,
+        pad_id=3,
+        unk_id=4,
+        bos_id=1,
+        eos_id=2,
+        pad_piece=PAD_TOKEN,
+        unk_piece=UNKNOWN_TOKEN,
+        bos_piece=BOS_TOKEN,
+        eos_piece=EOS_TOKEN,
+        normalization_rule_name="identity",
     )
-    return [row["text"] for row in dataset]
 
-
-def train_tokenizer(texts, vocab_size=16_000):
-    tokenizer = Tokenizer(BPE(unk_token=UNKNOWN_TOKEN, ignore_merges=True))
-    tokenizer.pre_tokenizer = Whitespace()
-
-    trainer = BpeTrainer(vocab_size=vocab_size, special_tokens=SPECIAL_TOKENS)
-    tokenizer.train_from_iterator(texts, trainer=trainer)
-
-    return tokenizer
+    if delete_input:
+        os.remove(input_file)
+        print(f"Deleted input file: {input_file}")
 
 
 if __name__ == "__main__":
+    import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--vocab_size", type=int, default=16_000)
-    parser.add_argument("--output", type=str, default="tokenizer.json")
+    parser.add_argument("--vocab_size", type=int, default=16_384)
+    parser.add_argument("--input_file", type=str, default="train.txt")
+    parser.add_argument("--delete-corpus", type=str)
 
     args = parser.parse_args()
-
-    texts = load_text()
-    tokenizer = train_tokenizer(texts, args.vocab_size)
-    tokenizer.save(args.output)
-    print(f"Tokenizer saved to {args.output}")
+    train_tokenizer(
+        vocab_size=args.vocab_size,
+        input_file=args.input_file,
+    )
