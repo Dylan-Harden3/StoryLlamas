@@ -6,20 +6,23 @@ import torch.nn.functional as F
 from transformer.rope import apply_rotary_emb
 
 
-class CausalAttention(nn.Module):
+class MultiHeadAttention(nn.Module):
     def __init__(self, args: DyLLMArgs):
         super().__init__()
         self.dim = args.model_dim
-        self.head_dim = args.model_dim
+        self.num_heads = args.num_heads
+        self.head_dim = self.dim // self.num_heads
 
-        self.w_q = nn.Linear(self.dim, self.head_dim, bias=False)
-        self.w_k = nn.Linear(self.dim, self.head_dim, bias=False)
-        self.w_v = nn.Linear(self.dim, self.head_dim, bias=False)
+        self.w_q = nn.Linear(self.dim, self.num_heads * self.head_dim, bias=False)
+        self.w_k = nn.Linear(self.dim, self.num_heads * self.head_dim, bias=False)
+        self.w_v = nn.Linear(self.dim, self.num_heads * self.head_dim, bias=False)
+
+        self.head_proj = nn.Linear(self.num_heads * self.head_dim, self.dim, bias=False)
 
         self.attention_dropout = nn.Dropout(args.dropout)
         self.residual_dropout = nn.Dropout(args.dropout)
 
-        mask = torch.full((1, 1, args.context_length, args.context_length), float("-inf"))
+        mask = torch.full((1, self.num_heads, args.context_length, args.context_length), float("-inf"))
         self.register_buffer("mask", torch.triu(mask, diagonal=1))
 
     def forward(
@@ -32,9 +35,9 @@ class CausalAttention(nn.Module):
         k = self.w_k(x)
         v = self.w_v(x)
 
-        q = q.view(batch_size, context_length, 1, self.head_dim)
-        k = k.view(batch_size, context_length, 1, self.head_dim)
-        v = v.view(batch_size, context_length, 1, self.head_dim)
+        q = q.view(batch_size, context_length, self.num_heads, self.head_dim)
+        k = k.view(batch_size, context_length, self.num_heads, self.head_dim)
+        v = v.view(batch_size, context_length, self.num_heads, self.head_dim)
 
         # RoPE positional encoding
         q, k = apply_rotary_emb(q, k, freqs_cos, freqs_sin)
@@ -51,7 +54,12 @@ class CausalAttention(nn.Module):
         attention_scores = F.softmax(q_kt, dim=-1).type_as(q)
         attention_scores = self.attention_dropout(attention_scores)
 
-        out = torch.matmul(attention_scores, v)
-        out = out.transpose(1, 2).contiguous().view(batch_size, context_length, -1)
+        attention_out = torch.matmul(attention_scores, v)
+
+        # stack all heads
+        attention_out = attention_out.transpose(1, 2).contiguous().view(batch_size, context_length, -1)
+
+        # project back to model_dim
+        out = self.head_proj(attention_out)
 
         return self.residual_dropout(out)

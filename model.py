@@ -19,7 +19,7 @@ class DyLLM(nn.Module):
         self.norm = RMSNorm(args.model_dim, args.norm_epsilon)
         self.classifier = nn.Linear(args.model_dim, args.vocab_size, bias=False)
 
-        freqs_cos, freqs_sin = precompute_freqs_cis(args.model_dim, args.context_length)
+        freqs_cos, freqs_sin = precompute_freqs_cis(args.model_dim // args.num_heads, args.context_length)
         self.register_buffer("freqs_cos", freqs_cos, persistent=False)
         self.register_buffer("freqs_sin", freqs_sin, persistent=False)
 

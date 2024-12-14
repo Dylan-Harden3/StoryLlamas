@@ -5,6 +5,7 @@ from dataclasses import dataclass
 class DyLLMArgs:
     vocab_size: int
     model_dim: int
+    num_heads: int
     context_length: int
     rope_theta: float
     num_layers: int

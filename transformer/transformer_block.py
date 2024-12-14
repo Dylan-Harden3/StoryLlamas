@@ -1,7 +1,7 @@
 import torch.nn as nn
 from config import DyLLMArgs
 import torch
-from transformer.causal_attention import CausalAttention
+from transformer.multihead_attention import MultiHeadAttention
 from transformer.swiglu_mlp import SwiGLUMLP
 from transformer.normalization import RMSNorm
 
@@ -12,7 +12,7 @@ class TransformerDecoderBlock(nn.Module):
         self.layer_id = layer_id
         self.args = args
 
-        self.attention = CausalAttention(args)
+        self.attention = MultiHeadAttention(args)
         self.mlp = SwiGLUMLP(args.model_dim, args.mlp_hidden_dim, args.dropout)
 
         self.attention_norm = RMSNorm(args.model_dim, args.norm_epsilon)
