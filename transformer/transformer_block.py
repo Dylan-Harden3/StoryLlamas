@@ -1,9 +1,9 @@
 import torch.nn as nn
 from config import DyLLMArgs
 import torch
-from attention.CausalAttention import CausalAttention
-from swiglu_mlp import SwiGLUMLP
-from normalization import RMSNorm
+from transformer.causal_attention import CausalAttention
+from transformer.swiglu_mlp import SwiGLUMLP
+from transformer.normalization import RMSNorm
 
 
 class TransformerDecoderBlock(nn.Module):

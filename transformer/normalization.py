@@ -4,6 +4,7 @@ import torch.nn as nn
 
 class RMSNorm(nn.Module):
     def __init__(self, dim: int, epsilon: float):
+        super().__init__()
         self.epsilon = epsilon
         self.gamma = nn.Parameter(torch.ones(dim))
 
@@ -17,6 +18,7 @@ class RMSNorm(nn.Module):
 
 class LayerNorm(nn.Module):
     def __init__(self, dim: int, epsilon: float):
+        super().__init__()
         self.gamma = nn.Parameter(torch.ones(dim))
         self.beta = nn.Parameter(torch.zeros(dim))
         self.epsilon = epsilon
