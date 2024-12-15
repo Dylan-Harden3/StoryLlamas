@@ -12,10 +12,14 @@ class MultiHeadAttention(nn.Module):
         self.dim = args.model_dim
         self.num_heads = args.num_heads
         self.head_dim = self.dim // self.num_heads
+        self.num_kv_heads = args.num_heads if args.num_kv_heads is None else args.num_kv_heads
+        assert self.num_heads % self.num_kv_heads == 0
+        
+        self.kv_repeats = self.num_heads // self.num_kv_heads
 
         self.w_q = nn.Linear(self.dim, self.num_heads * self.head_dim, bias=False)
-        self.w_k = nn.Linear(self.dim, self.num_heads * self.head_dim, bias=False)
-        self.w_v = nn.Linear(self.dim, self.num_heads * self.head_dim, bias=False)
+        self.w_k = nn.Linear(self.dim, self.num_kv_heads * self.head_dim, bias=False)
+        self.w_v = nn.Linear(self.dim, self.num_kv_heads * self.head_dim, bias=False)
 
         self.head_proj = nn.Linear(self.num_heads * self.head_dim, self.dim, bias=False)
 
@@ -36,11 +40,16 @@ class MultiHeadAttention(nn.Module):
         v = self.w_v(x)
 
         q = q.view(batch_size, context_length, self.num_heads, self.head_dim)
-        k = k.view(batch_size, context_length, self.num_heads, self.head_dim)
-        v = v.view(batch_size, context_length, self.num_heads, self.head_dim)
+        k = k.view(batch_size, context_length, self.num_kv_heads, self.head_dim)
+        v = v.view(batch_size, context_length, self.num_kv_heads, self.head_dim)
 
         # RoPE positional encoding
         q, k = apply_rotary_emb(q, k, freqs_cos, freqs_sin)
+
+        # stack kv heads if < q heads
+        if self.num_heads > self.num_kv_heads:
+            k = k[:, :, :, None, :].expand(batch_size, context_length, self.num_kv_heads * self.kv_repeats, self.head_dim)
+            v = v[:, :, :, None, :].expand(batch_size, context_length, self.num_kv_heads * self.kv_repeats, self.head_dim)
 
         q = q.transpose(1, 2)
         k = k.transpose(1, 2)

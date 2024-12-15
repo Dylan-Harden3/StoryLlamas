@@ -13,7 +13,7 @@ class TransformerDecoderBlock(nn.Module):
         self.args = args
 
         self.attention = MultiHeadAttention(args)
-        self.mlp = SwiGLUMLP(args.model_dim, args.mlp_hidden_dim, args.dropout)
+        self.mlp = SwiGLUMLP(args.model_dim, args.mlp_hidden_dim, args.mlp_multiple_of, args.dropout)
 
         self.attention_norm = RMSNorm(args.model_dim, args.norm_epsilon)
         self.mlp_norm = RMSNorm(args.model_dim, args.norm_epsilon)
