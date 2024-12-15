@@ -13,3 +13,4 @@ class DyLLMArgs:
     mlp_multiple_of: int = 256
     norm_epsilon: float = 1e-5
     dropout: float = 0.0
+    num_kv_heads: Optional[int] = None
