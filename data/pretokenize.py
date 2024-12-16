@@ -21,11 +21,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_file", type=str, help="output .bin file")
     parser.add_argument("--model_file", type=str, help="tokenizer .model file")
+    parser.add_argument("--dataset_file", type=str, help="which file from hf to use")
     args = parser.parse_args()
 
-    dataset = load_dataset(
-        "roneneldan/TinyStories", data_files="TinyStories-train.txt", split="train"
-    )
+    dataset = load_dataset("roneneldan/TinyStories", data_files=args.dataset_file, split="train")
     tokenizer = spm.SentencePieceProcessor(model_file=args.model_file)
 
     pretokenize(dataset, tokenizer, args.output_file)
