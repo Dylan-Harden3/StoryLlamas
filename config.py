@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
+
 @dataclass
 class DyLLMArgs:
     vocab_size: int
@@ -14,6 +15,7 @@ class DyLLMArgs:
     norm_epsilon: float = 1e-5
     dropout: float = 0.0
     num_kv_heads: Optional[int] = None
+
 
 DYLLM_CONFIG_2M = DyLLMArgs(
     vocab_size=4096,
@@ -50,3 +52,10 @@ DYLLM_CONFIG_91M = DyLLMArgs(
     num_layers=12,
     num_heads=12,
 )
+
+CONFIGS = {
+    "2m": DYLLM_CONFIG_2M,
+    "7m": DYLLM_CONFIG_7M,
+    "31m": DYLLM_CONFIG_31M,
+    "91m": DYLLM_CONFIG_91M,
+}
