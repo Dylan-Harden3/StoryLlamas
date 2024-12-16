@@ -1,58 +1,126 @@
 from model import DyLLM
-from config import DYLLM_CONFIG_2M
+from config import CONFIGS
 from data.dataset import PretokenizedDataset
 from torch.utils.data import DataLoader
 import torch
+import argparse
+import time
+from math import cos, pi
 
-batch_size = 256
-context_length = DYLLM_CONFIG_2M.context_length
 
-dataset = PretokenizedDataset("data/corpus.bin", context_length)
-loader = DataLoader(
-    dataset,
-    batch_size=batch_size,
-    shuffle=True,
-    sampler=None,
-    num_workers=0,
-    pin_memory=True,
-)
+def get_lr(step, warmup_steps, decay_steps, lr, min_lr):
+    if step < warmup_steps:
+        return lr * (step / warmup_steps)
+    if step > decay_steps:
+        return min_lr
+    ratio = (step - warmup_steps) / (decay_steps - warmup_steps)
+    coeff = 0.5 * (1.0 + cos(pi * ratio))
+    return min_lr + coeff * (lr - min_lr)
 
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-model = DyLLM(DYLLM_CONFIG_2M)
-optimizer = model.configure_optimizers(weight_decay=0.1, learning_rate=1e-3)
-scaler = torch.cuda.amp.GradScaler(enabled=True)
+def train(args):
+    config = CONFIGS.get(args.config.lower())
+    if not config:
+        raise ValueError(f"invalid config {config}, must be one of {",".join(CONFIGS.keys())}")
 
-TOTAL_BATCH_SIZE = 2**17
-grad_accum_steps = TOTAL_BATCH_SIZE // (batch_size * context_length)
+    dataset = PretokenizedDataset(args.corpus_bin, config.context_length)
+    loader = DataLoader(
+        dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        sampler=None,
+        num_workers=0,
+        pin_memory=True,
+    )
 
-assert TOTAL_BATCH_SIZE % (batch_size * context_length) == 0
+    val_datset = PretokenizedDataset(args.corpus_val_bin, config.context_length)
+    val_loader = DataLoader(
+        val_datset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        sampler=None,
+        num_workers=0,
+        pin_memory=True,
+    )
 
-n_steps = len(dataset) // batch_size
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
-model.to(device)
+    model = DyLLM(config)
+    optimizer = model.configure_optimizers(weight_decay=0.1, learning_rate=args.learning_rate)
+    scaler = torch.cuda.amp.GradScaler(enabled=True)
 
-context = torch.amp.autocast(device_type=device, dtype=torch.bfloat16)
+    total_batch_size = args.total_batch_size
+    grad_accum_steps = total_batch_size // (args.batch_size * config.context_length)
 
-for step in range(n_steps):
-    model.train()
-    loss_train = 0.0
+    assert total_batch_size % (args.batch_size * config.context_length) == 0
+    n_steps = len(dataset) // args.batch_size
+    warmup_steps = int(n_steps * 0.001)
 
-    for grad_accum_step in range(grad_accum_steps):
-        x, y = next(iter(loader))
-        x, y = x.to(device), y.to(device)
-        
-        with context:
-            logits, loss = model(x, y)
-            loss = loss / grad_accum_steps
-        loss_train += loss
-        scaler.scale(loss).backward()
-    
-    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-    scaler.step(optimizer)
-    scaler.update()
-    optimizer.zero_grad()
+    model.to(device)
 
-    print(f"step {step}/{n_steps} | loss: {loss_train:.5f}")
+    context = torch.amp.autocast(device_type=device, dtype=torch.bfloat16)
 
-torch.save(model.state_dict(), "model.bin")
+    min_val_loss = 10e99
+    output_path = args.output_path
+    if output_path is None:
+        output_path = f"model_{args.config}.bin"
+
+    for step in range(n_steps):
+        if step > 0 and step % args.val_every == 0:
+            val_loss = 0
+            model.eval()
+            with torch.no_grad():
+                for _ in range(args.val_steps):
+                    x, y = next(iter(val_loader))
+                    x, y = x.to(device), y.to(device)
+
+                    logits, loss = model(x, y)
+                    val_loss += loss
+                val_loss /= args.val_steps
+            print(f"val loss: {val_loss}")
+            if val_loss < min_val_loss:
+                torch.save(model.state_dict(), output_path)
+                min_val_loss = val_loss
+
+        model.train()
+        loss_train = 0.0
+        start = time.time()
+
+        lr = get_lr(step, warmup_steps=warmup_steps, decay_steps=n_steps, lr=args.learning_rate, min_lr=args.learning_rate * 0.1)
+        for param_group in optimizer.param_groups:
+            param_group["lr"] = lr
+
+        for grad_accum_step in range(grad_accum_steps):
+            x, y = next(iter(loader))
+            x, y = x.to(device), y.to(device)
+
+            with context:
+                logits, loss = model(x, y)
+                loss = loss / grad_accum_steps
+
+            loss_train += loss
+            scaler.scale(loss).backward()
+
+        end = time.time()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        scaler.step(optimizer)
+        scaler.update()
+        optimizer.zero_grad()
+
+        print(f"step {step+1:4d}/{n_steps} | loss: {loss_train:.6f} | lr: {lr:.2e} | time: {end - start:.2f}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, required=True, choices=CONFIGS.keys())
+    parser.add_argument("--corpus-bin", type=str, required=True, help="path to train dataset .bin file")
+    parser.add_argument("--corpus-val-bin", type=str, required=True, help="path to val dataset .bin file")
+    parser.add_argument("--val-every", type=int, help="how many steps for val loss", default=100)
+    parser.add_argument("--val-steps", type=int, default=20)
+    parser.add_argument("--output-path", type=str)
+    parser.add_argument("--batch-size", type=int, default=256)
+    parser.add_argument("--total-batch-size", type=int, default=2**17)
+    parser.add_argument("--learning-rate", type=float, default=8e-4)
+
+    args = parser.parse_args()
+    train(args)
