@@ -35,27 +35,27 @@ DYLLM_CONFIG_7M = DyLLMArgs(
     num_heads=6,
 )
 
-DYLLM_CONFIG_31M = DyLLMArgs(
+DYLLM_CONFIG_15M = DyLLMArgs(
     vocab_size=4096,
-    model_dim=512,
-    context_length=512,
+    model_dim=384,
+    context_length=256,
+    rope_theta=10000,
+    num_layers=7,
+    num_heads=7,
+)
+
+DYLLM_CONFIG_36M = DyLLMArgs(
+    vocab_size=4096,
+    model_dim=576,
+    context_length=256,
     rope_theta=10000,
     num_layers=8,
     num_heads=8,
 )
 
-DYLLM_CONFIG_91M = DyLLMArgs(
-    vocab_size=4096,
-    model_dim=768,
-    context_length=1024,
-    rope_theta=10000,
-    num_layers=12,
-    num_heads=12,
-)
-
 CONFIGS = {
     "2m": DYLLM_CONFIG_2M,
     "7m": DYLLM_CONFIG_7M,
-    "31m": DYLLM_CONFIG_31M,
-    "91m": DYLLM_CONFIG_91M,
+    "15m": DYLLM_CONFIG_15M,
+    "36m": DYLLM_CONFIG_36M,
 }
