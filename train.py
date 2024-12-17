@@ -46,7 +46,8 @@ def train(args):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = DyLLM(config)
-    optimizer = model.configure_optimizers(weight_decay=0.1, learning_rate=args.learning_rate)
+    model.to(device)
+    optimizer = model.configure_optimizers(weight_decay=args.weight_decay, learning_rate=args.learning_rate)
     scaler = torch.cuda.amp.GradScaler(enabled=True)
     start_step = 0
     
@@ -54,7 +55,7 @@ def train(args):
         checkpoint = torch.load(args.checkpoint_path, map_location=device)
         model.load_state_dict(checkpoint["model"])
         optimizer.load_state_dict(checkpoint["optimizer"])
-        start_step = checkpoint(step)
+        start_step = checkpoint["step"]
 
     total_batch_size = args.total_batch_size
     grad_accum_steps = total_batch_size // (args.batch_size * config.context_length)
@@ -63,9 +64,8 @@ def train(args):
     n_steps = args.n_steps
     if n_steps is None:
         n_steps = len(dataset) // args.batch_size
-    warmup_steps = int(n_steps * 0.001)
+    warmup_steps = int(n_steps * 0.01)
 
-    model.to(device)
 
     context = torch.amp.autocast(device_type=device, dtype=torch.float16)
     min_val_loss = 10e99
@@ -141,6 +141,7 @@ if __name__ == "__main__":
     parser.add_argument("--total-batch-size", type=int, default=2**17)
     parser.add_argument("--learning-rate", type=float, default=8e-4)
     parser.add_argument("--n-steps", type=int)
+    parser.add_argument("--weight-decay", type=float, default=0.1)
 
     args = parser.parse_args()
     train(args)
