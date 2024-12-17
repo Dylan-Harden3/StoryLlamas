@@ -6,6 +6,7 @@ from transformer.normalization import RMSNorm
 import torch
 from typing import Optional
 import torch.nn.functional as F
+import math
 
 
 class DyLLM(nn.Module):
@@ -20,10 +21,26 @@ class DyLLM(nn.Module):
 
         self.norm = RMSNorm(args.model_dim, args.norm_epsilon)
         self.classifier = nn.Linear(args.model_dim, args.vocab_size, bias=False)
+        self.classifier.SKIP_INIT = 1
+        self.token_embeddings.weight = self.classifier.weight
+        self.apply(self._init_weights)
+
+        for param_name, param in self.named_parameters():
+            if param_name.endswith("w3.weight") or param_name.endswith("head_proj.weight"):
+                nn.init.normal_(param, mean=0.0, std=0.02 / math.sqrt(2 * args.num_layers))
 
         freqs_cos, freqs_sin = precompute_freqs_cis(args.model_dim // args.num_heads, args.context_length)
         self.register_buffer("freqs_cos", freqs_cos, persistent=False)
         self.register_buffer("freqs_sin", freqs_sin, persistent=False)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            if not hasattr(module, "SKIP_INIT"):
+                nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, x: torch.Tensor, y: Optional[torch.Tensor] = None):
         _, context_length = x.shape
