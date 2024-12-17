@@ -7,7 +7,6 @@ import argparse
 import time
 from math import cos, pi
 
-
 def get_lr(step, warmup_steps, decay_steps, lr, min_lr):
     if step < warmup_steps:
         return lr * (step / warmup_steps)
@@ -19,6 +18,8 @@ def get_lr(step, warmup_steps, decay_steps, lr, min_lr):
 
 
 def train(args):
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
     config = CONFIGS.get(args.config.lower())
     if not config:
         raise ValueError(f"invalid config {config}, must be one of {",".join(CONFIGS.keys())}")
@@ -65,13 +66,9 @@ def train(args):
     warmup_steps = int(n_steps * 0.001)
 
     model.to(device)
-    context = torch.amp.autocast(device_type=device, dtype=torch.bfloat16)
-    model = torch.compile(model)
-    torch.set_float32_matmul_precision('high')
+
+    context = torch.amp.autocast(device_type=device, dtype=torch.float16)
     min_val_loss = 10e99
-    output_path = args.output_path
-    if output_path is None:
-        output_path = f"model_{args.config}.bin"
     
     if device == "cuda":
         torch.cuda.reset_peak_memory_stats()
