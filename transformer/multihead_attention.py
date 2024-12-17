@@ -48,8 +48,12 @@ class MultiHeadAttention(nn.Module):
 
         # stack kv heads if < q heads
         if self.num_heads > self.num_kv_heads:
-            k = k[:, :, :, None, :].expand(batch_size, context_length, self.num_kv_heads * self.kv_repeats, self.head_dim)
-            v = v[:, :, :, None, :].expand(batch_size, context_length, self.num_kv_heads * self.kv_repeats, self.head_dim)
+            k = (k[:, :, :, None, :]
+                .expand(batch_size, context_length, self.num_kv_heads, self.kv_repeats, self.head_dim)
+                .reshape(batch_size, context_length, self.num_kv_heads * self.kv_repeats, self.head_dim))
+            v = (v[:, :, :, None, :]
+                .expand(batch_size, context_length, self.num_kv_heads, self.kv_repeats, self.head_dim)
+                .reshape(batch_size, context_length, self.num_kv_heads * self.kv_repeats, self.head_dim))
 
         q = q.transpose(1, 2)
         k = k.transpose(1, 2)
