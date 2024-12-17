@@ -24,6 +24,7 @@ DYLLM_CONFIG_2M = DyLLMArgs(
     rope_theta=10000,
     num_layers=4,
     num_heads=4,
+    dropout=0.05
 )
 
 DYLLM_CONFIG_7M = DyLLMArgs(
