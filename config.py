@@ -37,18 +37,18 @@ DYLLM_CONFIG_7M = DyLLMArgs(
     dropout=0.05
 )
 
-DYLLM_CONFIG_15M = DyLLMArgs(
+DYLLM_CONFIG_30M = DyLLMArgs(
     vocab_size=4096,
-    model_dim=384,
+    model_dim=512,
     context_length=256,
     rope_theta=10000,
-    num_layers=7,
-    num_heads=7,
-    dropout=0.05
+    num_layers=8,
+    num_heads=8,
+    dropout=0.1
 )
 
 CONFIGS = {
     "2m": DYLLM_CONFIG_2M,
     "7m": DYLLM_CONFIG_7M,
-    "15m": DYLLM_CONFIG_15M
+    "30m": DYLLM_CONFIG_30M
 }
