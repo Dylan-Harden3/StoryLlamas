@@ -79,3 +79,42 @@ class DyLLM(nn.Module):
 
         optimizer = torch.optim.AdamW(optimizer_groups, lr=learning_rate, betas=(0.9, 0.95), eps=1e-8, fused=True)
         return optimizer
+    
+    @torch.no_grad()
+    def generate(self, prompt, tokenizer, max_length=256, top_k=50, top_p=0.95, temperature=1.0, eos_id=None, device="cpu"):
+        tokens = torch.tensor(tokenizer.encode_as_ids(prompt, add_bos=True)).reshape(1, -1).to(device)
+        self.eval()
+
+        for _ in range(max_length - tokens.size(0)):
+            seq = tokens[:, -self.args.context_length:]
+            logits, _ = self.forward(seq)
+            logits = logits [:, -1, :] / temperature
+
+            if top_k > 0:
+                topk_probs, topk_indices = torch.topk(logits, top_k, dim=-1)
+                topk_probs = F.softmax(topk_probs, dim=-1)
+                sampled_index = torch.multinomial(topk_probs, 1)
+                sampled_token = topk_indices.gather(-1, sampled_index)
+            elif top_p > 0.0:
+                sorted_logits, sorted_indices = torch.sort(logits, descending=True, dim=-1)
+                cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+                sorted_indices_to_remove = cumulative_probs > top_p
+                sorted_logits[sorted_indices_to_remove] = -float('Inf')
+
+                probs = F.softmax(sorted_logits, dim=-1)
+                sampled_token = torch.multinomial(probs, 1)
+                sampled_token = sorted_indices.gather(-1, sampled_token)
+            else:
+                probs = F.softmax(logits, dim=-1)
+                sampled_token = torch.multinomial(probs, 1)
+
+            if eos_id is not None and sampled_token == eos_id:
+                break
+            
+            if tokens[:, -3:].reshape(-1).tolist() == [385, 387, 384]:
+                tokens = tokens[:, :-3]
+                break
+            
+            tokens = torch.cat((tokens, sampled_token), dim=-1)
+        
+        return tokens
