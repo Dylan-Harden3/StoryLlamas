@@ -9,7 +9,7 @@ import torch.nn.functional as F
 import math
 
 
-class DyLLM(nn.Module):
+class Llama3(nn.Module):
     def __init__(self, args: LlamaArgs):
         super().__init__()
         self.args = args

@@ -1,4 +1,4 @@
-from model import DyLLM
+from model import Llama3
 from config import CONFIGS
 from data.dataset import PretokenizedDataset
 from torch.utils.data import DataLoader
@@ -45,7 +45,7 @@ def train(args):
     )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = DyLLM(config)
+    model = Llama3(config)
     model.to(device)
     optimizer = model.configure_optimizers(weight_decay=args.weight_decay, learning_rate=args.learning_rate)
     scaler = torch.cuda.amp.GradScaler(enabled=True)
