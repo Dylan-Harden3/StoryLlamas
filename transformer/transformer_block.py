@@ -1,5 +1,5 @@
 import torch.nn as nn
-from config import DyLLMArgs
+from config import LlamaArgs
 import torch
 from transformer.multihead_attention import MultiHeadAttention
 from transformer.swiglu_mlp import SwiGLUMLP
@@ -7,7 +7,7 @@ from transformer.normalization import RMSNorm
 
 
 class TransformerDecoderBlock(nn.Module):
-    def __init__(self, layer_id: int, args: DyLLMArgs):
+    def __init__(self, layer_id: int, args: LlamaArgs):
         super().__init__()
         self.layer_id = layer_id
         self.args = args

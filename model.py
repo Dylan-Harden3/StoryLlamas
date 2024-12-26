@@ -1,5 +1,5 @@
 import torch.nn as nn
-from config import DyLLMArgs
+from config import LlamaArgs
 from transformer.transformer_block import TransformerDecoderBlock
 from transformer.rope import precompute_freqs_cis
 from transformer.normalization import RMSNorm
@@ -10,7 +10,7 @@ import math
 
 
 class DyLLM(nn.Module):
-    def __init__(self, args: DyLLMArgs):
+    def __init__(self, args: LlamaArgs):
         super().__init__()
         self.args = args
         self.token_embeddings = nn.Embedding(args.vocab_size, args.model_dim)

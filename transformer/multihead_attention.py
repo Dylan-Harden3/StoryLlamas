@@ -1,5 +1,5 @@
 import torch.nn as nn
-from config import DyLLMArgs
+from config import LlamaArgs
 import torch
 import math
 import torch.nn.functional as F
@@ -7,7 +7,7 @@ from transformer.rope import apply_rotary_emb
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, args: DyLLMArgs):
+    def __init__(self, args: LlamaArgs):
         super().__init__()
         self.dim = args.model_dim
         self.num_heads = args.num_heads
