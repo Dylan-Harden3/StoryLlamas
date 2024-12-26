@@ -3,7 +3,7 @@ from typing import Optional
 
 
 @dataclass
-class DyLLMArgs:
+class LlamaArgs:
     vocab_size: int
     model_dim: int
     num_heads: int
@@ -17,7 +17,7 @@ class DyLLMArgs:
     num_kv_heads: Optional[int] = None
 
 
-DYLLM_CONFIG_2M = DyLLMArgs(
+CONFIG_2M = LlamaArgs(
     vocab_size=4096,
     model_dim=128,
     context_length=256,
@@ -27,7 +27,7 @@ DYLLM_CONFIG_2M = DyLLMArgs(
     dropout=0.05
 )
 
-DYLLM_CONFIG_7M = DyLLMArgs(
+CONFIG_7M = LlamaArgs(
     vocab_size=4096,
     model_dim=256,
     context_length=256,
@@ -37,7 +37,7 @@ DYLLM_CONFIG_7M = DyLLMArgs(
     dropout=0.05
 )
 
-DYLLM_CONFIG_30M = DyLLMArgs(
+CONFIG_30M = LlamaArgs(
     vocab_size=4096,
     model_dim=512,
     context_length=256,
@@ -48,7 +48,7 @@ DYLLM_CONFIG_30M = DyLLMArgs(
 )
 
 CONFIGS = {
-    "2m": DYLLM_CONFIG_2M,
-    "7m": DYLLM_CONFIG_7M,
-    "30m": DYLLM_CONFIG_30M
+    "2m": CONFIG_2M,
+    "7m": CONFIG_7M,
+    "30m": CONFIG_30M
 }

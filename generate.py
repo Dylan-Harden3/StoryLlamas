@@ -1,5 +1,5 @@
 from config import CONFIGS
-from model import DyLLM
+from model import Llama3
 import torch
 import argparse
 import sentencepiece as spm
@@ -17,7 +17,7 @@ parser.add_argument("--tokenizer", type=str, default="tokenizer/tokenizer_4096.m
 args = parser.parse_args()
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-model = DyLLM(CONFIGS[args.config.lower()])
+model = Llama3(CONFIGS[args.config.lower()])
 tokenizer = spm.SentencePieceProcessor(model_file=args.tokenizer)
 
 checkpoint = torch.load(args.checkpoint_path, map_location=device)
